@@ -117,35 +117,69 @@ def make_deformed(problem, result, exaggeration=400.0):
 
 
 def make_gif(problem, frames=41):
-    loads = np.linspace(0.0, -2.0e4, frames)
-    fig, ax = plt.subplots(figsize=(8.0, 4.8), dpi=140)
+    """Load-progression animation: the ENTIRE benchmark load vector (both
+    the apex load and the right-node load) is ramped by lambda = 0..1, so
+    frame 0 is genuinely unloaded. Fixed axes, equal aspect, x40
+    exaggeration, light-grey undeformed geometry, support/load arrows."""
+    lambdas = np.linspace(0.0, 1.0, frames)
+    full_loads = problem.loads.copy()
+    fig, ax = plt.subplots(figsize=(8.6, 5.2), dpi=140)
 
-    def draw_at(load_y, exaggeration=400.0):
+    # Fixed axis limits computed once from the most deformed frame.
+    result_final = solve_at(-2.0e4)
+    deformed_final = problem.nodes + 40.0 * result_final["displacements"].reshape(-1, 2)
+    x_lo = min(problem.nodes[:, 0].min(), deformed_final[:, 0].min()) - 0.3
+    x_hi = max(problem.nodes[:, 0].max(), deformed_final[:, 0].max()) + 0.3
+    y_lo = min(problem.nodes[:, 1].min(), deformed_final[:, 1].min()) - 0.3
+    y_hi = max(problem.nodes[:, 1].max(), deformed_final[:, 1].max()) + 0.5
+
+    def draw(lam):
         ax.clear()
-        result = solve_at(load_y)
-        deformed = problem.nodes + exaggeration * result["displacements"].reshape(-1, 2)
-        fmax = np.max(np.abs(result["axial_forces"]))
-        for (i, j, _) in problem.elements:
-            pass
+        loads_now = lam * full_loads
+        sub = TrussProblem(problem.nodes, problem.elements, loads_now, problem.fixed)
+        result = solve_truss(sub)
+        deformed = problem.nodes + 40.0 * result["displacements"].reshape(-1, 2)
+        fmax = max(np.max(np.abs(result["axial_forces"])), 1.0)
         for e_i, (i, j, _) in enumerate(problem.elements):
             n = result["axial_forces"][e_i]
             color = RED if n > 0 else BLUE
-            lw = 1.0 + 3.0 * abs(n) / fmax
+            lw = 1.0 + 3.5 * abs(n) / fmax if lam > 0 else 1.0
             ax.plot([deformed[i][0], deformed[j][0]],
                     [deformed[i][1], deformed[j][1]], color=color, lw=lw,
                     solid_capstyle="round")
-        ax.plot(problem.nodes[:, 0], problem.nodes[:, 1], "o", color=GRAY, ms=5)
+        # Light-grey undeformed reference.
+        for (i, j, _) in problem.elements:
+            ax.plot([problem.nodes[i][0], problem.nodes[j][0]],
+                    [problem.nodes[i][1], problem.nodes[j][1]],
+                    color="#cccccc", lw=1.0, zorder=0)
+        ax.plot(problem.nodes[:, 0], problem.nodes[:, 1], "o", color="#999999", ms=4)
+        # Support markers: pin (node 0) triangle, roller (node 3) triangle+circles.
+        x0, y0 = problem.nodes[0]
+        ax.plot([x0], [y0], marker="^", color=GRAY, ms=12, ls="none")
+        x3, y3 = problem.nodes[3]
+        ax.plot([x3], [y3], marker="^", color=GRAY, ms=12, ls="none")
+        # Applied-load arrows at loaded nodes (scaled).
+        for n_i in (2, 3):
+            fx = loads_now[2 * n_i]
+            fy = loads_now[2 * n_i + 1]
+            if abs(fx) + abs(fy) > 1.0:
+                ax.annotate("", xy=(problem.nodes[n_i][0] + fx * 1.2e-5,
+                                    problem.nodes[n_i][1] + fy * 1.2e-5),
+                            xytext=(problem.nodes[n_i][0], problem.nodes[n_i][1]),
+                            arrowprops=dict(arrowstyle="->", color=GREEN, lw=2.0))
+        ax.set_xlim(x_lo, x_hi)
+        ax.set_ylim(y_lo, y_hi)
         ax.set_aspect("equal")
         ax.set_xlabel("x [m]")
         ax.set_ylabel("y [m]")
-        ax.set_title(f"Load progression: apex load = {load_y/1e3:.1f} kN "
-                     f"(×400 exaggeration)\nred = tension, blue = compression, "
-                     "width ∝ |N|")
+        ax.set_title(f"λ = {lam:.2f}: apex {lam*20.0:.1f} kN, "
+                     f"right node {lam*15.0:.1f} kN\n"
+                     "red = tension, blue = compression, width ∝ |N| (×40)")
 
     writer = mpl_animation.PillowWriter(fps=8)
     with writer.saving(fig, RESULTS / "load_progression.gif", dpi=140):
-        for load_y in loads:
-            draw_at(load_y)
+        for lam in lambdas:
+            draw(lam)
             writer.grab_frame()
     plt.close(fig)
     return frames

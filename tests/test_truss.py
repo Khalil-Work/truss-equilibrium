@@ -135,3 +135,37 @@ def test_input_validation():
         TrussProblem(nodes, [(0, 1, 1.0)], np.zeros(4), [7])
     with pytest.raises(ValueError, match="finite"):
         TrussProblem([(0.0, np.nan), (1.0, 0.0)], [(0, 1, 1.0)], np.zeros(4), [])
+
+
+def test_public_element_stiffness_validates_finite_inputs():
+    from truss_equilibrium import element_stiffness
+    with pytest.raises(ValueError, match="finite"):
+        element_stiffness(0.0, 0.0, np.inf, 1.0, 100.0)
+    with pytest.raises(ValueError, match="finite"):
+        element_stiffness(0.0, 0.0, 1.0, 0.0, np.nan)
+    with pytest.raises(ValueError, match="finite"):
+        element_stiffness(0.0, float("inf"), 1.0, 0.0, 100.0)
+
+
+def test_fractional_supports_and_bool_indices_rejected():
+    nodes = [(0.0, 0.0), (1.0, 0.0)]
+    # 1.5 must not be silently truncated to 1 (support corruption).
+    with pytest.raises(ValueError, match="integers"):
+        TrussProblem(nodes, [(0, 1, 1.0)], np.zeros(4), [1.5])
+    with pytest.raises(ValueError, match="integers"):
+        TrussProblem(nodes, [(0, 1, 1.0)], np.zeros(4), [True])
+    with pytest.raises(ValueError, match="integers"):
+        TrussProblem(nodes, [(0, 1.0, 1.0)], np.zeros(4), [])
+
+
+def test_all_dofs_constrained_is_valid():
+    # Fully clamped truss: zero displacements, reactions = -loads, zero
+    # free residual (empty free block handled).
+    nodes = [(0.0, 0.0), (1.0, 0.0)]
+    loads = np.array([100.0, -50.0, 0.0, 25.0])
+    problem = TrussProblem(nodes, [(0, 1, 1.0e6)], loads, [0, 1, 2, 3])
+    result = solve_truss(problem)
+    np.testing.assert_allclose(result["displacements"], np.zeros(4), atol=0)
+    np.testing.assert_allclose(result["reactions"], -loads, rtol=1e-12)
+    assert result["equilibrium_residual"] == 0.0
+    np.testing.assert_allclose(result["axial_forces"], [0.0], atol=1e-9)

@@ -12,9 +12,11 @@
 
 <img src="docs/results/load_progression.gif" alt="Animated truss load progression with member forces" width="640">
 
-<sub>41 frames — each frame is a fully solved truss at that load level
-(benchmark geometry, ×400 displacement exaggeration). Red = tension, blue
-= compression, line width ∝ |N|. Produced by
+<sub>41 frames — the entire benchmark load vector (apex and right-node
+loads) ramps by λ = 0…1, so frame 0 is genuinely unloaded; each frame is a
+fully solved truss at that load (fixed axes, ×40 displacement exaggeration,
+light-grey undeformed geometry, support markers and load arrows). Red =
+tension, blue = compression, width ∝ |N|. Produced by
 <code>examples/run_verification.py</code>.</sub>
 
 </div>
@@ -45,7 +47,7 @@ Full derivation: [docs/model.md](docs/model.md); API:
 
 ```bash
 python -m pip install -r requirements-dev.txt
-python -m pytest tests -q                       # 7 verification tests
+python -m pytest tests -q                       # 10 verification tests
 python examples/run_verification.py             # figures + GIF + raw data
 ```
 
@@ -57,7 +59,7 @@ Verified: Python 3.13.5, NumPy 2.1.3, Windows 11; CI on Ubuntu. Tests
 ```
 truss_equilibrium/
 └── truss.py            # element_stiffness, TrussProblem, solve_truss
-tests/test_truss.py     # 7 verification tests
+tests/test_truss.py     # 10 verification tests
 examples/run_verification.py
 docs/ model.md  api.md  verification.md  results/
 ```
@@ -92,7 +94,7 @@ shape [deformed_geometry.png](docs/results/deformed_geometry.png).
 
 ## ✅ Verification
 
-Seven tests: analytic spring load-sharing, hand-solved apex truss,
+Ten tests: finite public-API validation, fractional-support/bool-index rejection, all-constrained support, analytic spring load-sharing, hand-solved apex truss,
 node-by-node joints closure on an irregular random-load truss, stiffness
 symmetry + mechanism detection, EA scaling, rotated-element consistency,
 input validation. Evidence and limits:
