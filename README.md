@@ -1,0 +1,118 @@
+# 🏗️ Truss Equilibrium
+
+**Forces, displacement, and reactions from first principles: an original 2D truss finite-element solver — direct stiffness assembly, hand-verifiable statics, and method-of-joints closure — with member forces matching analytic spring/truss solutions to 1e-12 and free-DOF equilibrium residuals at roundoff.**
+
+[![tests](https://github.com/khalil-official/truss-equilibrium/actions/workflows/ci.yml/badge.svg)](https://github.com/khalil-official/truss-equilibrium/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](requirements.txt)
+
+<div align="center">
+
+**▶ Watch the truss respond as the load grows:**
+
+<img src="docs/results/load_progression.gif" alt="Animated truss load progression with member forces" width="640">
+
+<sub>41 frames — each frame is a fully solved truss at that load level
+(benchmark geometry, ×400 displacement exaggeration). Red = tension, blue
+= compression, line width ∝ |N|. Produced by
+<code>examples/run_verification.py</code>.</sub>
+
+</div>
+
+## 🎯 Purpose and scope
+
+A compact, readable direct-stiffness truss solver for learning and quick
+verification-first structural analysis: every result closes equilibrium
+and the hand solutions are reproducible to 1e-12. Scope: 2D, linear
+elastic, axial members, homogeneous supports, static loads. Not a frame/
+beam solver, no buckling or geometric nonlinearity.
+
+## 🧮 Model, method, and checks
+
+- Bar element stiffness (EA/L) with direction cosines; global assembly;
+  dense solve of the free block after an explicit rank check (mechanisms
+  raise, never return garbage).
+- Post-processing: axial forces (tension +), reactions, free-DOF residual
+  (the actual solver error measure), deformed geometry.
+- Verification anchors: parallel-spring load sharing; classic apex-load
+  truss hand solution; method-of-joints closure at every node; EA scaling;
+  rotation consistency.
+
+Full derivation: [docs/model.md](docs/model.md); API:
+[docs/api.md](docs/api.md).
+
+## ⚡ Quick start
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest tests -q                       # 7 verification tests
+python examples/run_verification.py             # figures + GIF + raw data
+```
+
+Verified: Python 3.13.5, NumPy 2.1.3, Windows 11; CI on Ubuntu. Tests
+< 1 s; results script ≈ 5 s.
+
+## 🧱 Architecture and API
+
+```
+truss_equilibrium/
+└── truss.py            # element_stiffness, TrussProblem, solve_truss
+tests/test_truss.py     # 7 verification tests
+examples/run_verification.py
+docs/ model.md  api.md  verification.md  results/
+```
+
+```python
+import numpy as np
+from truss_equilibrium import TrussProblem, solve_truss
+
+nodes = [(0.0, 0.0), (1.0, 0.5), (2.0, 0.0)]
+problem = TrussProblem(nodes, [(0, 1, 1.0e6), (1, 2, 1.0e6)],
+                       np.array([0, 0, 0, -1.0e3, 0, 0]),
+                       fixed_dofs=[0, 1, 4, 5])
+result = solve_truss(problem)
+print(result["axial_forces"], result["equilibrium_residual"])
+```
+
+## 📊 Results and metrics (benchmark truss)
+
+| Metric | Value |
+| --- | --- |
+| Free-DOF equilibrium residual | **1.5e-11 N** |
+| Statics closure ΣF_x, ΣF_y | 1.1e-11 N, 0 N |
+| Analytic spring/truss solutions | matched to 1e-12 (25 N load sharing; ±P/(2 sin 45°)) |
+| Method-of-joints closure (every node) | < 5e-7 N |
+| Max tension / compression | 30.0 kN / 48.7 kN |
+| Max displacement | 16.2 mm |
+
+Raw data: [docs/results/](docs/results) — `member_forces.csv`,
+`reactions.csv`, `displacements.csv`, `run_summary.json`; cover
+[benchmark_solution.png](docs/results/benchmark_solution.png), deformed
+shape [deformed_geometry.png](docs/results/deformed_geometry.png).
+
+## ✅ Verification
+
+Seven tests: analytic spring load-sharing, hand-solved apex truss,
+node-by-node joints closure on an irregular random-load truss, stiffness
+symmetry + mechanism detection, EA scaling, rotated-element consistency,
+input validation. Evidence and limits:
+[docs/verification.md](docs/verification.md).
+
+## ⚠️ Limitations
+
+- Linear static, axial-only, homogeneous supports; no beams, buckling,
+  self-weight, or dynamics.
+- Dense solver — educational scale (tens of members), not sparse
+  industrial scale.
+- Verification is analytic/algebraic; no experimental correlation claimed.
+
+## 📚 References
+
+- J. S. Przemieniecki, *Theory of Matrix Structural Analysis* (direct
+  stiffness method).
+- R. D. Cook et al., *Concepts and Applications of Finite Element
+  Analysis*.
+
+Dependencies: NumPy (BSD-3), Matplotlib (PSF-based), Pillow (HPND), pytest
+(MIT). This repository's own code is original and MIT-licensed; see
+[LICENSE](LICENSE).

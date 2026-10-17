@@ -1,0 +1,21 @@
+{
+  "runtime": {
+    "python": "3.13.5",
+    "numpy": "2.1.3",
+    "system": "Windows-11-10.0.26200-SP0"
+  },
+  "case": "simply supported 5-member truss, apex -20 kN + 15 kN right node",
+  "results": {
+    "max_free_equilibrium_residual_N": 1.4551915228366852e-11,
+    "statics_closure_sum_fx_N": 1.0913936421275139e-11,
+    "statics_closure_sum_fy_N": 0.0,
+    "max_axial_tension_kN": 29.999999999999996,
+    "max_axial_compression_kN": -48.674942218763874,
+    "max_displacement_mm": 16.15889543781383
+  },
+  "animation": {
+    "file": "load_progression.gif",
+    "frames": 41,
+    "content": "each frame is a fully solved truss at that load"
+  }
+}
