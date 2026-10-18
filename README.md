@@ -12,10 +12,11 @@
 
 <img src="docs/results/load_progression.gif" alt="Animated truss load progression with member forces" width="640">
 
-<sub>41 frames — the entire benchmark load vector (apex and right-node
-loads) ramps by λ = 0…1, so frame 0 is genuinely unloaded; each frame is a
-fully solved truss at that load (fixed axes, ×40 displacement exaggeration,
-light-grey undeformed geometry, support markers and load arrows). Red =
+<sub>41 frames — the entire benchmark load vector (apex +3 kN horizontal
+and −20 kN vertical, right node +15 kN) ramps by λ = 0…1, so frame 0 is
+genuinely unloaded; each frame is a fully solved truss at that load (fixed
+axes, ×40 displacement exaggeration, light-grey undeformed geometry, pin
+at node 0 / x-roller at node 3 markers and load arrows). Red =
 tension, blue = compression, width ∝ |N|. Produced by
 <code>examples/run_verification.py</code>.</sub>
 
@@ -78,14 +79,19 @@ print(result["axial_forces"], result["equilibrium_residual"])
 
 ## 📊 Results and metrics (benchmark truss)
 
+Pin at node 0 + vertical roller at node 3; apex (+3 kN →, −20 kN ↓),
+right node +15 kN ↑.
+
 | Metric | Value |
 | --- | --- |
 | Free-DOF equilibrium residual | **1.5e-11 N** |
-| Statics closure ΣF_x, ΣF_y | 1.1e-11 N, 0 N |
+| Statics closure ΣF_x, ΣF_y | 0 N, −5.5e-12 N |
+| Reactions vs independent hand statics | R0x = −3000, R0y = 13875, R3y = −8875 N; **max error 5.5e-12 N** |
+| Roller-support vertical displacement | exactly 0 m (node 3 stays on its support) |
 | Analytic spring/truss solutions | matched to 1e-12 (25 N load sharing; ±P/(2 sin 45°)) |
 | Method-of-joints closure (every node) | < 5e-7 N |
-| Max tension / compression | 30.0 kN / 48.7 kN |
-| Max displacement | 16.2 mm |
+| Max tension / compression | 12.3 kN / 16.7 kN |
+| Max displacement | 2.04 mm (apex 1.98 mm) |
 
 Raw data: [docs/results/](docs/results) — `member_forces.csv`,
 `reactions.csv`, `displacements.csv`, `run_summary.json`; cover
@@ -94,10 +100,13 @@ shape [deformed_geometry.png](docs/results/deformed_geometry.png).
 
 ## ✅ Verification
 
-Ten tests: finite public-API validation, fractional-support/bool-index rejection, all-constrained support, analytic spring load-sharing, hand-solved apex truss,
+Eleven tests: finite public-API validation, fractional-support/bool-index rejection, all-constrained support, analytic spring load-sharing, hand-solved apex truss,
 node-by-node joints closure on an irregular random-load truss, stiffness
 symmetry + mechanism detection, EA scaling, rotated-element consistency,
-input validation. Evidence and limits:
+input validation, and a benchmark regression pinning the documented
+supports (pin node 0, roller DOF 7 at node 3) with hand reactions
+(−3000, 13875, −8875) N, zero roller vertical displacement and nonzero
+apex displacement. Evidence and limits:
 [docs/verification.md](docs/verification.md).
 
 ## ⚠️ Limitations

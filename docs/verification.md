@@ -1,6 +1,6 @@
 # Verification evidence
 
-Reproduced by `python -m pytest tests -q` (7 tests) and
+Reproduced by `python -m pytest tests -q` (11 tests) and
 `python examples/run_verification.py` (figures + GIF + CSV/JSON under
 `docs/results/`). Verified on Windows 11, Python 3.13.5, NumPy 2.1.3; CI
 repeats the suite on Ubuntu.
@@ -16,16 +16,34 @@ repeats the suite on Ubuntu.
 | `test_ea_scaling` | Doubling EA halves displacements (linear elasticity consistency). |
 | `test_element_stiffness_orthogonal_rotation` | A y-direction bar has the correctly rotated stiffness — catches direction-cosine errors. |
 | `test_input_validation` | Zero-length members, bad EA, wrong load shape, out-of-range DOFs, NaN coordinates — all rejected with specific errors. |
+| `test_public_element_stiffness_validates_finite_inputs` | The public element API rejects non-finite coordinates/EA. |
+| `test_fractional_supports_and_bool_indices_rejected` | Fractional DOF indices and bools are rejected — no silent support corruption. |
+| `test_all_dofs_constrained_is_valid` | A fully clamped truss solves (u = 0, R = −f) without special-casing. |
+| `test_benchmark_supports_and_hand_statics` | The published benchmark's supports are exactly pin node 0 (DOFs 0,1) + vertical roller node 3 (DOF 7); reactions match the independent hand statics R0x = −3000 N, R0y = 13875 N, R3y = −8875 N (moment about node 0 closes) to 1e-6; roller vertical displacement is exactly zero, apex displacement nonzero; whole-model force and moment balance close. |
+
+The benchmark regression exists because of a 2026-10 review finding: the
+benchmark once constrained DOF 5 — the free apex's vertical DOF — while
+the documentation and figures drew a roller at node 3. The solver was
+correct for the system it was given; the *benchmark input* disagreed with
+its own presentation (node 3 visibly moved 16 mm away from its drawn
+support). The repaired input uses the documented supports, and the test
+now pins input, statics and kinematics together so the mismatch cannot
+recur silently.
 
 ## Recorded run (`docs/results/`)
 
-- `benchmark_solution.png` + CSVs: simply supported 5-member truss under
-  apex −20 kN and right-node +15 kN. Free-DOF residual 1.5e-11 N;
-  statics closure ΣF_x = 1.1e-11 N, ΣF_y = 0; max tension 30.0 kN, max
-  compression 48.7 kN; max displacement 16.2 mm.
+- `benchmark_solution.png` + CSVs: simply supported 5-member truss (pin
+  node 0, vertical roller node 3) under apex (+3 kN horizontal, −20 kN
+  vertical) and right-node +15 kN. Free-DOF residual 1.5e-11 N; statics
+  closure ΣF_x = 0 N, ΣF_y = −5.5e-12 N; reactions match the hand
+  reference (−3000, 13875, −8875) N to 5.5e-12 N; roller vertical
+  displacement exactly 0; max tension 12.3 kN, max compression 16.7 kN;
+  max displacement 2.04 mm (apex 1.98 mm).
 - `deformed_geometry.png`: undeformed vs ×400-exaggerated deformed shape.
 - `load_progression.gif`: 41 frames, each a fully solved truss at the
-  progressive load (member color = tension/compression, width ∝ |N|).
+  progressive load (member color = tension/compression, width ∝ |N|);
+  title carries the full load description including the horizontal apex
+  component; node 3 stays on its roller support in every frame.
 - `run_summary.json`: the metrics above + runtime context.
 
 ## Limits of this evidence

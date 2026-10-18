@@ -48,7 +48,8 @@ plt.rcParams.update(
 
 
 def benchmark_truss(load_y=-2.0e4):
-    """Simply supported truss: pin at node 0, roller at node 3, tip loads."""
+    """Simply supported truss: pin at node 0 (DOFs 0,1), vertical roller
+    at node 3 (DOF 7), tip loads. Node 2 is the free apex."""
     nodes = [(0.0, 0.0), (2.0, 0.0), (1.0, 1.5), (4.0, 0.0)]
     ea = 5.0e7
     elements = [(0, 1, ea), (0, 2, ea), (1, 2, ea), (1, 3, ea), (2, 3, ea)]
@@ -56,7 +57,7 @@ def benchmark_truss(load_y=-2.0e4):
     loads[4] = 3.0e3          # horizontal at apex
     loads[5] = load_y         # vertical at apex
     loads[7] = -0.75 * load_y # vertical at right node
-    fixed = [0, 1, 5]         # pin at node 0, roller (vertical) at node 3
+    fixed = [0, 1, 7]         # pin at node 0; vertical roller at node 3
     return TrussProblem(nodes, elements, loads, fixed)
 
 
@@ -75,9 +76,9 @@ def make_cover(result, problem):
     ax[0].set_ylabel("axial force N [kN] (tension +)")
     ax[0].set_title("Member forces (benchmark load)")
 
-    # Reactions vs applied loads.
+    # Reactions vs applied loads (DOF 7 is node 3's vertical roller).
     labels = ["R0x", "R0y", "R3y"]
-    values = [result["reactions"][0], result["reactions"][1], result["reactions"][5]]
+    values = [result["reactions"][0], result["reactions"][1], result["reactions"][7]]
     ax[1].bar(labels, np.array(values) / 1e3, color=RED, width=0.5)
     ax[1].axhline(0.0, color=GRAY, lw=0.8)
     ax[1].set_ylabel("support reaction [kN]")
@@ -153,11 +154,16 @@ def make_gif(problem, frames=41):
                     [problem.nodes[i][1], problem.nodes[j][1]],
                     color="#cccccc", lw=1.0, zorder=0)
         ax.plot(problem.nodes[:, 0], problem.nodes[:, 1], "o", color="#999999", ms=4)
-        # Support markers: pin (node 0) triangle, roller (node 3) triangle+circles.
+        # Support markers: pin at node 0 (triangle with hatching), vertical
+        # roller at node 3 (triangle over rollers = free to slide in x).
         x0, y0 = problem.nodes[0]
         ax.plot([x0], [y0], marker="^", color=GRAY, ms=12, ls="none")
+        ax.plot([x0 - 0.16, x0 + 0.16], [y0 - 0.24, y0 - 0.24], color=GRAY, lw=1.4)
         x3, y3 = problem.nodes[3]
         ax.plot([x3], [y3], marker="^", color=GRAY, ms=12, ls="none")
+        ax.plot([x3 - 0.16, x3 + 0.16], [y3 - 0.24, y3 - 0.24], color=GRAY, lw=1.4)
+        for xc in (x3 - 0.10, x3 + 0.10):
+            ax.plot([xc], [y3 - 0.30], marker="o", color=GRAY, ms=4, ls="none")
         # Applied-load arrows at loaded nodes (scaled).
         for n_i in (2, 3):
             fx = loads_now[2 * n_i]
@@ -172,9 +178,10 @@ def make_gif(problem, frames=41):
         ax.set_aspect("equal")
         ax.set_xlabel("x [m]")
         ax.set_ylabel("y [m]")
-        ax.set_title(f"λ = {lam:.2f}: apex {lam*20.0:.1f} kN, "
-                     f"right node {lam*15.0:.1f} kN\n"
-                     "red = tension, blue = compression, width ∝ |N| (×40)")
+        ax.set_title(f"λ = {lam:.2f}: apex ({lam*3.0:.1f} kN →, {lam*20.0:.1f} kN ↓), "
+                     f"right node {lam*15.0:.1f} kN ↑\n"
+                     "red = tension, blue = compression, width ∝ |N| (×40); "
+                     "pin at node 0, x-roller at node 3")
 
     writer = mpl_animation.PillowWriter(fps=8)
     with writer.saving(fig, RESULTS / "load_progression.gif", dpi=140):
@@ -192,7 +199,7 @@ def write_csvs(problem, result):
     (RESULTS / "member_forces.csv").write_text("\n".join(rows), encoding="utf-8")
 
     rows = ["dof,reaction_N"]
-    for d in (0, 1, 5):
+    for d in (0, 1, 7):
         rows.append(f"{d},{result['reactions'][d]:.6f}")
     (RESULTS / "reactions.csv").write_text("\n".join(rows), encoding="utf-8")
 
@@ -217,17 +224,33 @@ def main():
     sum_fx = applied[[0, 2, 4, 6]].sum() + reactions[[0, 2, 4, 6]].sum()
     sum_fy = applied[[1, 3, 5, 7]].sum() + reactions[[1, 3, 5, 7]].sum()
 
+    # Independent hand statics for the documented supports (pin node 0,
+    # vertical roller node 3): R0x = -3000 N from sum Fx; moment about
+    # node 0 gives R3y = -8875 N; sum Fy then gives R0y = 13875 N.
+    hand = {"R0x_N": -3000.0, "R0y_N": 13875.0, "R3y_N": -8875.0}
+    measured = {"R0x_N": float(reactions[0]), "R0y_N": float(reactions[1]),
+                "R3y_N": float(reactions[7])}
+    hand_errors = {k: abs(measured[k] - hand[k]) for k in hand}
+
     summary = {
         "runtime": {
             "python": platform.python_version(),
             "numpy": np.__version__,
             "system": platform.platform(),
         },
-        "case": "simply supported 5-member truss, apex -20 kN + 15 kN right node",
+        "case": "simply supported 5-member truss, pin node 0 + vertical "
+                "roller node 3; apex (+3 kN, -20 kN), right node +15 kN",
         "results": {
             "max_free_equilibrium_residual_N": result["equilibrium_residual"],
             "statics_closure_sum_fx_N": float(sum_fx),
             "statics_closure_sum_fy_N": float(sum_fy),
+            "hand_reference_reactions_N": hand,
+            "measured_reactions_N": measured,
+            "hand_vs_measured_max_abs_N": max(hand_errors.values()),
+            "roller_support_vertical_displacement_m":
+                float(result["displacements"][7]),
+            "apex_displacement_mm":
+                float(np.linalg.norm(result["displacements"][4:6]) * 1e3),
             "max_axial_tension_kN": float(result["axial_forces"].max() / 1e3),
             "max_axial_compression_kN": float(result["axial_forces"].min() / 1e3),
             "max_displacement_mm": float(np.abs(result["displacements"]).max() * 1e3),

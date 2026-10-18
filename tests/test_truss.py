@@ -169,3 +169,46 @@ def test_all_dofs_constrained_is_valid():
     np.testing.assert_allclose(result["reactions"], -loads, rtol=1e-12)
     assert result["equilibrium_residual"] == 0.0
     np.testing.assert_allclose(result["axial_forces"], [0.0], atol=1e-9)
+
+
+def test_benchmark_supports_and_hand_statics():
+    # The published benchmark: pin at node 0 (DOFs 0,1), VERTICAL ROLLER at
+    # node 3 (DOF 7), apex (+3 kN, -20 kN), right node +15 kN. Regression
+    # for the 2026-10 review finding: the benchmark once constrained DOF 5
+    # (the free apex's vertical DOF) while the docs/figures drew a roller
+    # at node 3, so node 3 visibly moved away from its drawn support.
+    import sys
+    import pathlib
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "examples"))
+    from run_verification import benchmark_truss
+
+    problem = benchmark_truss()
+    assert problem.fixed == [0, 1, 7], (
+        f"benchmark supports must be pin node0 + roller node3, got {problem.fixed}")
+    result = solve_truss(problem)
+
+    # Independent hand statics (moment about node 0 closes):
+    #   sum Fx:  R0x = -3000 N
+    #   sum M_0: 1*(-20000) - 1.5*3000 + 4*15000 + 4*R3y = 0 -> R3y = -8875 N
+    #   sum Fy:  R0y = 5000 + 8875 = 13875 N
+    r = result["reactions"]
+    assert r[0] == pytest.approx(-3000.0, abs=1e-6)
+    assert r[1] == pytest.approx(13875.0, abs=1e-6)
+    assert r[7] == pytest.approx(-8875.0, abs=1e-6)
+
+    # Support kinematics: roller node 3 has zero VERTICAL displacement but
+    # is free horizontally; the apex is fully free and must move.
+    u = result["displacements"]
+    assert abs(u[7]) < 1e-12
+    assert abs(u[6]) > 1e-9
+    assert np.linalg.norm(u[4:6]) > 1e-6
+
+    # Whole-model force and moment balance against the hand reference.
+    fx = problem.loads[[0, 2, 4, 6]].sum() + r[0]
+    fy = problem.loads[[1, 3, 5, 7]].sum() + r[1] + r[7]
+    nodes = problem.nodes
+    m0 = (nodes[2][0] * problem.loads[5] - nodes[2][1] * problem.loads[4]
+          + nodes[3][0] * problem.loads[7] + nodes[3][0] * r[7])
+    assert fx == pytest.approx(0.0, abs=1e-6)
+    assert fy == pytest.approx(0.0, abs=1e-6)
+    assert m0 == pytest.approx(0.0, abs=1e-6)
