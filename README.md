@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Truss Equilibrium banner: engineering blueprint of a truss with pin and roller supports" width="100%">
+<img src="docs/banner.png" alt="Truss Equilibrium banner: engineering blueprint of a truss with pin and roller supports" width="100%">
 
 # 🏗️ Truss Equilibrium
 
@@ -60,7 +60,7 @@ Full derivation: [docs/model.md](docs/model.md); API: [docs/api.md](docs/api.md)
 flowchart LR
     A[nodes, members,<br/>EA, loads, supports] --> B[element stiffness<br/>k = EA/L c cᵀ]
     B --> C[global assembly K]
-    C --> D{rank check on<br/>free block}
+    C --> D{"rank check on<br/>free block"}
     D -- deficient --> X[❌ mechanism raises]
     D -- ok --> E[solve K_ff u_f = f_f]
     E --> F[axial forces,<br/>reactions, deformed shape]
