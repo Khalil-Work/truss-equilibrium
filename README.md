@@ -11,13 +11,13 @@ hand-verifiable statics, and method-of-joints closure — with member forces mat
 analytic spring/truss solutions to 1e-12 and free-DOF equilibrium residuals at
 roundoff.**
 
-[![tests](https://github.com/khalil-official/truss-equilibrium/actions/workflows/ci.yml/badge.svg)](https://github.com/khalil-official/truss-equilibrium/actions/workflows/ci.yml)
+[![tests](https://github.com/khalil-work/truss-equilibrium/actions/workflows/ci.yml/badge.svg)](https://github.com/khalil-work/truss-equilibrium/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](requirements.txt)
 [![tests](https://img.shields.io/badge/tests-11%20passing-brightgreen.svg)](tests)
 [![residual](https://img.shields.io/badge/equilibrium%20residual-1.5e--11%20N-orange.svg)](docs/verification.md)
-[![repo stars](https://img.shields.io/github/stars/khalil-official/truss-equilibrium?style=flat&color=yellow)](https://github.com/khalil-official/truss-equilibrium/stargazers)
-[![last commit](https://img.shields.io/github/last-commit/khalil-official/truss-equilibrium?color=9cf)](https://github.com/khalil-official/truss-equilibrium/commits)
+[![repo stars](https://img.shields.io/github/stars/khalil-work/truss-equilibrium?style=flat&color=yellow)](https://github.com/khalil-work/truss-equilibrium/stargazers)
+[![last commit](https://img.shields.io/github/last-commit/khalil-work/truss-equilibrium?color=9cf)](https://github.com/khalil-work/truss-equilibrium/commits)
 
 [Quick start](#-quick-start) · [Method](#-model-method-and-checks) · [Animation](#%EF%B8%8F-results-gallery) · [Metrics](#-results-and-metrics-benchmark-truss) · [References](#-references)
 
