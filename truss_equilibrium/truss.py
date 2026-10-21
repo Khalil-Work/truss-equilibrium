@@ -24,6 +24,9 @@ __all__ = ["TrussProblem", "solve_truss", "element_stiffness"]
 
 def element_stiffness(x1, y1, x2, y2, ea):
     """4x4 global-coordinate bar stiffness matrix for one element."""
+    for name, value in (("x1", x1), ("y1", y1), ("x2", x2), ("y2", y2), ("EA", ea)):
+        if not np.isfinite(value):
+            raise ValueError(f"{name} must be finite, got {value}")
     dx, dy = x2 - x1, y2 - y1
     length = float(np.hypot(dx, dy))
     if length <= 0.0:
@@ -55,24 +58,35 @@ class TrussProblem:
             raise ValueError("nodes must be an (n, 2) array of coordinates")
         if not np.all(np.isfinite(self.nodes)):
             raise ValueError("node coordinates must be finite")
-        self.elements = [tuple(e) for e in elements]
-        for (i, j, ea) in self.elements:
+        self.elements = []
+        for e in elements:
+            i, j, ea = e
+            # Reject bools (isinstance(True, int) is True) and fractional
+            # node indices: silent int() coercion would corrupt connectivity.
+            for idx in (i, j):
+                if isinstance(idx, bool) or not isinstance(idx, (int, np.integer)):
+                    raise ValueError(f"element node indices must be integers, got {idx!r}")
             if not (0 <= i < len(self.nodes)) or not (0 <= j < len(self.nodes)):
                 raise ValueError(f"element nodes out of range: {(i, j)}")
             if i == j:
                 raise ValueError("element endpoints must differ")
             if ea <= 0 or not np.isfinite(ea):
                 raise ValueError(f"EA must be finite positive, got {ea}")
+            self.elements.append((int(i), int(j), float(ea)))
         self.loads = np.asarray(loads, dtype=float)
         if self.loads.shape != (2 * len(self.nodes),):
             raise ValueError("loads must have shape (2*n_nodes,)")
         if not np.all(np.isfinite(self.loads)):
             raise ValueError("loads must be finite")
-        self.fixed = sorted(set(int(d) for d in fixed_dofs))
         n_dof = 2 * len(self.nodes)
-        for d in self.fixed:
+        cleaned_fixed = []
+        for d in fixed_dofs:
+            if isinstance(d, bool) or not isinstance(d, (int, np.integer)):
+                raise ValueError(f"fixed DOFs must be integers, got {d!r}")
             if not 0 <= d < n_dof:
                 raise ValueError(f"fixed DOF {d} out of range")
+            cleaned_fixed.append(int(d))
+        self.fixed = sorted(set(cleaned_fixed))
 
     @property
     def n_dof(self):
@@ -102,13 +116,15 @@ def solve_truss(problem: TrussProblem):
     K = problem.assemble()
     u = np.zeros(problem.n_dof)
     free = problem.free_dofs()
-    K_ff = K[np.ix_(free, free)]
-    if not np.all(np.isfinite(K_ff)) or np.linalg.matrix_rank(K_ff) < len(free):
-        raise FloatingPointError(
-            "truss has a mechanism: the free stiffness matrix is singular "
-            "(check supports/element connectivity)"
-        )
-    u[free] = np.linalg.solve(K_ff, problem.loads[free])
+    if free:
+        K_ff = K[np.ix_(free, free)]
+        if not np.all(np.isfinite(K_ff)) or np.linalg.matrix_rank(K_ff) < len(free):
+            raise FloatingPointError(
+                "truss has a mechanism: the free stiffness matrix is singular "
+                "(check supports/element connectivity)"
+            )
+        u[free] = np.linalg.solve(K_ff, problem.loads[free])
+    # All DOFs constrained is valid: u stays zero, reactions = -loads.
 
     # Post-processing: element axial forces (tension +) and reactions.
     axial = []
@@ -124,7 +140,7 @@ def solve_truss(problem: TrussProblem):
     reactions = K @ u - problem.loads
     # Residual on the FREE dofs only: at constrained dofs K u - f is the
     # support reaction (nonzero by design), not a solver error.
-    residual = float(np.max(np.abs((K @ u - problem.loads)[free])))
+    residual = float(np.max(np.abs((K @ u - problem.loads)[free]))) if free else 0.0
 
     deformed = problem.nodes + u.reshape(-1, 2)
     return {

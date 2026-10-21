@@ -1,0 +1,34 @@
+{
+  "runtime": {
+    "python": "3.13.5",
+    "numpy": "2.1.3",
+    "system": "Windows-11-10.0.26200-SP0"
+  },
+  "case": "simply supported 5-member truss, pin node 0 + vertical roller node 3; apex (+3 kN, -20 kN), right node +15 kN",
+  "results": {
+    "max_free_equilibrium_residual_N": 1.4551915228366852e-11,
+    "statics_closure_sum_fx_N": 0.0,
+    "statics_closure_sum_fy_N": -5.4569682106375694e-12,
+    "hand_reference_reactions_N": {
+      "R0x_N": -3000.0,
+      "R0y_N": 13875.0,
+      "R3y_N": -8875.0
+    },
+    "measured_reactions_N": {
+      "R0x_N": -2999.9999999999964,
+      "R0y_N": 13875.000000000005,
+      "R3y_N": -8874.999999999996
+    },
+    "hand_vs_measured_max_abs_N": 5.4569682106375694e-12,
+    "roller_support_vertical_displacement_m": 0.0,
+    "apex_displacement_mm": 1.9780106355741998,
+    "max_axial_tension_kN": 12.250000000000005,
+    "max_axial_compression_kN": -16.67567464902095,
+    "max_displacement_mm": 2.0418333445594206
+  },
+  "animation": {
+    "file": "load_progression.gif",
+    "frames": 41,
+    "content": "each frame is a fully solved truss at that load"
+  }
+}
